@@ -720,7 +720,11 @@ status_t ACodec::configureOutputBuffersFromNativeWindow(
             mNativeWindow.get(),
             def.format.video.nFrameWidth,
             def.format.video.nFrameHeight,
+#ifdef STE_HARDWARE
+            OMXCodec::OmxToHALFormat(def.format.video.eColorFormat));
+#else
             def.format.video.eColorFormat);
+#endif          
 #endif
 
     if (err != 0) {
@@ -4936,7 +4940,7 @@ bool ACodec::BaseState::onOMXFillBufferDone(
                 mCodec->mSkipCutBuffer->submit(info->mData);
             }
             info->mData->meta()->setInt64("timeUs", timeUs);
-            info->mData->meta()->setObject("graphic-buffer", info->mGraphicBuffer);
+            //info->mData->meta()->setObject("graphic-buffer", (android::RefBase*)&info->mGraphicBuffer);
 
             sp<AMessage> notify = mCodec->mNotify->dup();
             notify->setInt32("what", CodecBase::kWhatDrainThisBuffer);
