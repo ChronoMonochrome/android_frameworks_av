@@ -38,10 +38,6 @@
 #include <OMX_TI_IVCommon.h>
 #endif
 
-#ifdef MTK_HARDWARE
-#include <bufferallocator/CameraSourceHandler.h>
-#endif
-
 #include "include/ExtendedUtils.h"
 
 namespace android {
@@ -100,23 +96,10 @@ void CameraSourceListener::postDataTimestamp(
 }
 
 static int32_t getColorFormat(const char* colorFormat) {
-#ifdef MTK_HARDWARE
-    ALOGD("getColorFormat(%s)", colorFormat);
-
-    if (!strcmp(colorFormat, CameraParameters::PIXEL_FORMAT_YUV420P)) {
-        // YV12
-        return OMX_MTK_COLOR_FormatYV12;
-    }
-
-    if (!strcmp(colorFormat, "yuv420i-yyuvyy-3plane" /*MtkCameraParameters::PIXEL_FORMAT_YUV420I)*/)) {
-        // i420
-        return OMX_COLOR_FormatYUV420Planar;
-    }
-#else
     if (!strcmp(colorFormat, CameraParameters::PIXEL_FORMAT_YUV420P)) {
        return OMX_COLOR_FormatYUV420Planar;
     }
-#endif
+
     if (!strcmp(colorFormat, CameraParameters::PIXEL_FORMAT_YUV422SP)) {
        return OMX_COLOR_FormatYUV422SemiPlanar;
     }
@@ -215,9 +198,6 @@ CameraSource::CameraSource(
       mCollectStats(false) {
     mVideoSize.width  = -1;
     mVideoSize.height = -1;
-#ifdef MTK_HARDWARE
-    mMtkCameraSourceHandler = new CameraSourceHandler;
-#endif
 
     mInitCheck = init(camera, proxy, cameraId,
                     clientName, clientUid,
@@ -387,6 +367,7 @@ status_t CameraSource::configureCamera(
                 frameRate, supportedFrameRates);
             return BAD_VALUE;
         }
+
         // The frame rate is supported, set the camera to the requested value.
         params->setPreviewFrameRate(frameRate);
         isCameraParamChanged = true;
@@ -609,9 +590,6 @@ status_t CameraSource::initWithCameraAccess(
     ExtendedUtils::HFR::setHFRIfEnabled(params, mMeta);
 #endif
 
-#ifdef MTK_HARDWARE
-    mMtkCameraSourceHandler->init(&mCamera, &mMeta);
-#endif
     return OK;
 }
 
@@ -624,10 +602,6 @@ CameraSource::~CameraSource() {
         // Camera's lock is released in this case.
         releaseCamera();
     }
-#ifdef MTK_HARDWARE
-    delete mMtkCameraSourceHandler;
-    mMtkCameraSourceHandler = NULL;
-#endif
 }
 
 void CameraSource::startCameraRecording() {

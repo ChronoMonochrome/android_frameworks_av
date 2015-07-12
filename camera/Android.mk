@@ -23,11 +23,6 @@ LOCAL_SRC_FILES:= \
 	ProCamera.cpp \
 	CameraBase.cpp \
 
-ifeq ($(BOARD_HAS_MTK_HARDWARE),true)
-	LOCAL_SRC_FILES+= \
-		MtkCameraParameters.cpp
-endif
-
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libutils \
