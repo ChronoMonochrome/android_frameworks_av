@@ -233,10 +233,6 @@ public:
     // and should be called at most once.  For a definition of what "low RAM" means, see
     // android.app.ActivityManager.isLowRamDevice().
     virtual status_t setLowRamDevice(bool isLowRamDevice) = 0;
-#ifdef MTK_HARDWARE
-    virtual status_t SetAudioData(int par1,size_t len,void *ptr)=0;
-    virtual status_t GetAudioData(int par1,size_t len,void *ptr)=0;
-#endif
 };
 
 
