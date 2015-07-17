@@ -26,6 +26,8 @@
 #include <media/stagefright/OMXCodec.h>
 #include <utils/threads.h>
 
+#include <cutils/properties.h>
+
 #include <libexpat/expat.h>
 #ifdef QCOM_HARDWARE
 #include "include/ExtendedUtils.h"
@@ -445,6 +447,17 @@ ssize_t MediaCodecList::findCodecByType(
 }
 
 ssize_t MediaCodecList::findCodecByName(const char *name) const {
+
+
+    char prop_retrieved_value[PROPERTY_VALUE_MAX];
+
+    int ret = property_get("vu.co.meticulus.h264switch", prop_retrieved_value, "false");
+
+    if(strcmp(name, "OMX.ST.VFM.H264Dec") == 0 && strcmp(prop_retrieved_value, "true") == 0){
+	ALOGI("h264switch: %s - %s -> OMX.google.h264.decoder",__func__,name);
+	name = "OMX.google.h264.decoder";
+    }
+
     for (size_t i = 0; i < mCodecInfos.size(); ++i) {
         const CodecInfo &info = mCodecInfos.itemAt(i);
 
@@ -464,8 +477,19 @@ const char *MediaCodecList::getCodecName(size_t index) const {
     if (index >= mCodecInfos.size()) {
         return NULL;
     }
+    const CodecInfo &binfo = mCodecInfos.itemAt(index);
+
+    char prop_retrieved_value[PROPERTY_VALUE_MAX];
+
+    int ret = property_get("vu.co.meticulus.h264switch", prop_retrieved_value, "false");
+
+    if(strcmp(binfo.mName.c_str(), "OMX.ST.VFM.H264Dec") == 0 && strcmp(prop_retrieved_value, "true") == 0){
+	ALOGI("h264switch: %s - %s -> OMX.google.h264.decoder",__func__,binfo.mName.c_str());
+	index = findCodecByName("OMX.google.h264.decoder");
+    }
 
     const CodecInfo &info = mCodecInfos.itemAt(index);
+
     return info.mName.c_str();
 }
 
@@ -482,6 +506,17 @@ bool MediaCodecList::codecHasQuirk(
         size_t index, const char *quirkName) const {
     if (index >= mCodecInfos.size()) {
         return NULL;
+    }
+
+    const CodecInfo &binfo = mCodecInfos.itemAt(index);
+
+    char prop_retrieved_value[PROPERTY_VALUE_MAX];
+
+    int ret = property_get("vu.co.meticulus.h264switch", prop_retrieved_value, "false");
+
+    if(strcmp(binfo.mName.c_str(), "OMX.ST.VFM.H264Dec") == 0 && strcmp(prop_retrieved_value, "true") == 0){
+	ALOGI("h264switch: %s - %s -> OMX.google.h264.decoder",__func__,binfo.mName.c_str());
+	index = findCodecByName("OMX.google.h264.decoder");
     }
 
     const CodecInfo &info = mCodecInfos.itemAt(index);
@@ -502,6 +537,17 @@ status_t MediaCodecList::getSupportedTypes(
 
     if (index >= mCodecInfos.size()) {
         return -ERANGE;
+    }
+
+    const CodecInfo &binfo = mCodecInfos.itemAt(index);
+
+    char prop_retrieved_value[PROPERTY_VALUE_MAX];
+
+    int ret = property_get("vu.co.meticulus.h264switch", prop_retrieved_value, "false");
+
+    if(strcmp(binfo.mName.c_str(), "OMX.ST.VFM.H264Dec") == 0 && strcmp(prop_retrieved_value, "true") == 0){
+	ALOGI("h264switch: %s - %s -> OMX.google.h264.decoder",__func__,binfo.mName.c_str());
+	index = findCodecByName("OMX.google.h264.decoder");
     }
 
     const CodecInfo &info = mCodecInfos.itemAt(index);
@@ -527,6 +573,18 @@ status_t MediaCodecList::getCodecCapabilities(
 
     if (index >= mCodecInfos.size()) {
         return -ERANGE;
+    }
+
+    const CodecInfo &binfo = mCodecInfos.itemAt(index);
+
+    char prop_retrieved_value[PROPERTY_VALUE_MAX];
+
+    int ret = property_get("vu.co.meticulus.h264switch", prop_retrieved_value, "false");
+
+    if(strcmp(binfo.mName.c_str(), "OMX.ST.VFM.H264Dec") == 0 && strcmp(prop_retrieved_value, "true") == 0){
+	ALOGI("h264switch: %s - %s -> OMX.google.h264.decoder",__func__,binfo.mName.c_str());
+	index = findCodecByName("OMX.google.h264.decoder");
+	
     }
 
     const CodecInfo &info = mCodecInfos.itemAt(index);
