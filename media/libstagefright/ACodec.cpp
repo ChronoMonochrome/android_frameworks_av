@@ -487,16 +487,14 @@ status_t ACodec::allocateBuffersOnPort(OMX_U32 portIndex) {
     CHECK(mBuffers[portIndex].isEmpty());
 
     status_t err;
-    if (mNativeWindow != NULL && portIndex == kPortIndexOutput) {
-#ifdef STE_HARDWARE
-	err = allocateOutputBuffersFromNativeWindow();
-#else
-        if (mStoreMetaDataInOutputBuffers) {
+    bool disable_streaming_fix = SystemProperties.getBoolean("debug.omx.disable_streaming_fix", true);
+
+    if (mNativeWindow != NULL && portIndex == kPortIndexOutput) {		
+        if (disable_streaming_fix) {
             err = allocateOutputMetaDataBuffers();
         } else {
             err = allocateOutputBuffersFromNativeWindow();
         }
-#endif
     } else {
         OMX_PARAM_PORTDEFINITIONTYPE def;
         InitOMXParams(&def);
