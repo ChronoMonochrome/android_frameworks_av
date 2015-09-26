@@ -321,11 +321,6 @@ void OMXCodec::findMatchingCodecs(
 
     size_t index = 0;
 
-#ifdef STE_HARDWARE
-    if (info->hasQuirk("requires-store-metadata-before-idle")) {
-      quirks |= kRequiresStoreMetaDataBeforeIdle;
-    }
-#endif
 #ifdef ENABLE_AV_ENHANCEMENTS
     if (matchComponentName && !strcmp("OMX.qcom.audio.encoder.aac", matchComponentName)) {
         matchingCodecs->add();
@@ -439,6 +434,12 @@ uint32_t OMXCodec::getComponentQuirks(
     if (list->codecHasQuirk(
                 index, "input-buffer-sizes-are-bogus")) {
       quirks |= kInputBufferSizesAreBogus;
+    }
+#endif
+#ifdef STE_HARDWARE
+    if (list->codecHasQuirk(
+                index, "requires-store-metadata-before-idle")) {
+      quirks |= kRequiresStoreMetaDataBeforeIdle;
     }
 #endif
 
@@ -2379,13 +2380,11 @@ status_t OMXCodec::allocateOutputBuffersFromNativeWindow() {
             mNativeWindow.get(),
             def.format.video.nFrameWidth,
             def.format.video.nFrameHeight,
-            def.format.video.eColorFormat);
-#elif defined(STE_HARDWARE)
-    err = native_window_set_buffers_geometry(
-            mNativeWindow.get(),
-            def.format.video.nFrameWidth,
-            def.format.video.nFrameHeight,
+#ifdef STE_HARDWARE
             OmxToHALFormat(def.format.video.eColorFormat));
+#else
+            def.format.video.eColorFormat);
+#endif
 #else
     OMX_COLOR_FORMATTYPE eColorFormat;
 
