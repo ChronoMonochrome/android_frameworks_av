@@ -17,9 +17,13 @@
 #ifndef NUPLAYER_DECODER_H_
 #define NUPLAYER_DECODER_H_
 
-#include "NuPlayer.h"
+#include <media/stagefright/foundation/AMessage.h>
 
+#include "NuPlayer.h"
 #include "NuPlayerDecoderBase.h"
+#include "NuPlayerSource.h"
+
+#include "mediaplayerservice/AVNuExtensions.h"
 
 namespace android {
 
@@ -49,8 +53,9 @@ protected:
     virtual void onFlush();
     virtual void onShutdown(bool notifyComplete);
     virtual bool doRequestBuffers();
+    virtual void setPcmFormat(const sp<AMessage> &format) { format->setInt32("pcm-format",
+            AVNuUtils::get()->getKeyPCMFormat(mSource->getFormatMeta(true))); }
 
-private:
     enum {
         kWhatCodecNotify         = 'cdcN',
         kWhatRenderBuffer        = 'rndr',
@@ -90,6 +95,7 @@ private:
     bool mIsSecure;
     bool mFormatChangePending;
     bool mTimeChangePending;
+    bool mVideoFormatChangeDoFlushOnly;
 
     bool mResumePending;
     AString mComponentName;
@@ -102,7 +108,7 @@ private:
             size_t size,
             int64_t timeUs,
             int32_t flags);
-    void handleOutputFormatChange(const sp<AMessage> &format);
+    virtual void handleOutputFormatChange(const sp<AMessage> &format);
 
     void releaseAndResetMediaBuffers();
     void requestCodecNotification();

@@ -21,6 +21,7 @@
 #define LOG_TAG "MediaPlayerService"
 #include <utils/Log.h>
 
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -57,7 +58,7 @@
 #include <media/MemoryLeakTrackUtil.h>
 #include <media/stagefright/MediaCodecList.h>
 #include <media/stagefright/MediaErrors.h>
-#include <media/stagefright/Utils.h>
+#include <media/stagefright/AudioPlayer.h>
 #include <media/stagefright/foundation/ADebug.h>
 #include <media/stagefright/foundation/ALooperRoster.h>
 #include <mediautils/BatteryNotifier.h>
@@ -147,7 +148,7 @@ bool unmarshallFilter(const Parcel& p,
 
     if (p.dataAvail() < size)
     {
-        ALOGE("Filter too short expected %d but got %d", size, p.dataAvail());
+        ALOGE("Filter too short expected %zu but got %zu", size, p.dataAvail());
         *status = NOT_ENOUGH_DATA;
         return false;
     }
@@ -252,6 +253,9 @@ extern ALooperRoster gLooperRoster;
 
 
 static bool checkPermission(const char* permissionString) {
+#ifndef HAVE_ANDROID_OS
+    return true;
+#endif
     if (getpid() == IPCThreadState::self()->getCallingPid()) return true;
     bool ok = checkCallingPermission(String16(permissionString));
     if (!ok) ALOGE("Request requires %s", permissionString);
@@ -729,7 +733,7 @@ status_t MediaPlayerService::Client::setDataSource(
 
 status_t MediaPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t length)
 {
-    ALOGV("setDataSource fd=%d, offset=%lld, length=%lld", fd, offset, length);
+    ALOGV("setDataSource fd=%d, offset=%" PRId64 ", length=%" PRId64 "", fd, offset, length);
     struct stat sb;
     int ret = fstat(fd, &sb);
     if (ret != 0) {
@@ -737,11 +741,11 @@ status_t MediaPlayerService::Client::setDataSource(int fd, int64_t offset, int64
         return UNKNOWN_ERROR;
     }
 
-    ALOGV("st_dev  = %llu", static_cast<uint64_t>(sb.st_dev));
+    ALOGV("st_dev  = %" PRIu64 "", static_cast<uint64_t>(sb.st_dev));
     ALOGV("st_mode = %u", sb.st_mode);
     ALOGV("st_uid  = %lu", static_cast<unsigned long>(sb.st_uid));
     ALOGV("st_gid  = %lu", static_cast<unsigned long>(sb.st_gid));
-    ALOGV("st_size = %llu", sb.st_size);
+    ALOGV("st_size = %" PRId64 "", sb.st_size);
 
     if (offset >= sb.st_size) {
         ALOGE("offset error");
@@ -749,7 +753,7 @@ status_t MediaPlayerService::Client::setDataSource(int fd, int64_t offset, int64
     }
     if (offset + length > sb.st_size) {
         length = sb.st_size - offset;
-        ALOGV("calculated length = %lld", length);
+        ALOGV("calculated length = %" PRId64 "", length);
     }
 
     player_type playerType = MediaPlayerFactory::getPlayerType(this,
@@ -1244,8 +1248,17 @@ void MediaPlayerService::Client::notify(
         if (msg == MEDIA_PLAYBACK_COMPLETE && client->mNextClient != NULL) {
             if (client->mAudioOutput != NULL)
                 client->mAudioOutput->switchToNextOutput();
-            client->mNextClient->start();
-            client->mNextClient->mClient->notify(MEDIA_INFO, MEDIA_INFO_STARTED_AS_NEXT, 0, obj);
+            ALOGD("gapless:current track played back");
+            ALOGD("gapless:try to do a gapless switch to next track");
+            status_t ret;
+            ret = client->mNextClient->start();
+            if (ret == NO_ERROR) {
+                client->mNextClient->mClient->notify(MEDIA_INFO,
+                        MEDIA_INFO_STARTED_AS_NEXT, 0, obj);
+            } else {
+                client->mClient->notify(MEDIA_ERROR, MEDIA_ERROR_UNKNOWN , 0, obj);
+                ALOGW("gapless:start playback for next track failed");
+            }
         }
     }
 
@@ -1290,6 +1303,22 @@ void MediaPlayerService::Client::addNewMetadataUpdate(media::Metadata::Type meta
     if (mMetadataUpdated.indexOf(metadata_type) < 0) {
         mMetadataUpdated.add(metadata_type);
     }
+}
+
+status_t MediaPlayerService::Client::suspend()
+{
+    ALOGV("[%d] suspend", mConnId);
+    sp<MediaPlayerBase> p = getPlayer();
+    if (p == NULL) return NO_INIT;
+    return p->suspend();
+}
+
+status_t MediaPlayerService::Client::resume()
+{
+    ALOGV("[%d] resume", mConnId);
+    sp<MediaPlayerBase> p = getPlayer();
+    if (p == NULL) return NO_INIT;
+    return p->resume();
 }
 
 #if CALLBACK_ANTAGONIZER
@@ -1361,6 +1390,7 @@ MediaPlayerService::AudioOutput::AudioOutput(int sessionId, int uid, int pid,
     }
 
     setMinBufferCount();
+    mBitWidth = 16;
 }
 
 MediaPlayerService::AudioOutput::~AudioOutput()
@@ -1617,6 +1647,15 @@ status_t MediaPlayerService::AudioOutput::open(
         } else if (mRecycledTrack->format() != format) {
             reuse = false;
         }
+
+        if (bothOffloaded) {
+            if (mBitWidth != offloadInfo->bit_width) {
+                ALOGV("output bit width differs %d v/s %d",
+                      mBitWidth, offloadInfo->bit_width);
+                reuse = false;
+            }
+        }
+
     } else {
         ALOGV("no track available to recycle");
     }
@@ -1697,7 +1736,7 @@ status_t MediaPlayerService::AudioOutput::open(
 
         if (!bothOffloaded) {
             if (mRecycledTrack->frameCount() != t->frameCount()) {
-                ALOGV("framecount differs: %u/%u frames",
+                ALOGV("framecount differs: %zu/%zu frames",
                       mRecycledTrack->frameCount(), t->frameCount());
                 reuse = false;
             }
@@ -1732,6 +1771,13 @@ status_t MediaPlayerService::AudioOutput::open(
     mFlags = flags;
     mMsecsPerFrame = 1E3f / (mPlaybackRate.mSpeed * sampleRate);
     mFrameSize = t->frameSize();
+
+    if (offloadInfo) {
+        mBitWidth = offloadInfo->bit_width;
+    } else {
+        mBitWidth = 16;
+    }
+
     uint32_t pos;
     if (t->getPosition(&pos) == OK) {
         mBytesWritten = uint64_t(pos) * mFrameSize;
@@ -1832,6 +1878,7 @@ void MediaPlayerService::AudioOutput::switchToNextOutput() {
                 mNextOutput->mBytesWritten = mBytesWritten;
                 mNextOutput->mFlags = mFlags;
                 mNextOutput->mFrameSize = mFrameSize;
+                mNextOutput->mBitWidth = mBitWidth;
                 close_l();
                 mCallbackData = NULL;  // destruction handled by mNextOutput
             } else {
@@ -2096,6 +2143,7 @@ bool CallbackThread::threadLoop() {
     if (mBuffer == NULL) {
         mBufferSize = sink->bufferSize();
         mBuffer = malloc(mBufferSize);
+        CHECK(mBuffer != NULL);
     }
 
     size_t actualSize =

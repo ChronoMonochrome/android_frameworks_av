@@ -31,6 +31,9 @@
 #include <media/stagefright/MetaData.h>
 #include <media/stagefright/Utils.h>
 
+#include "mediaplayerservice/AVNuExtensions.h"
+#include "mediaplayerservice/AVMediaServiceExtensions.h"
+
 namespace android {
 
 NuPlayerDriver::NuPlayerDriver(pid_t pid)
@@ -55,7 +58,7 @@ NuPlayerDriver::NuPlayerDriver(pid_t pid)
             true,  /* canCallJava */
             PRIORITY_AUDIO);
 
-    mPlayer = new NuPlayer(pid);
+    mPlayer = AVNuFactory::get()->createNuPlayer(pid);
     mLooper->registerHandler(mPlayer);
 
     mPlayer->setDriver(this);
@@ -114,6 +117,7 @@ status_t NuPlayerDriver::setDataSource(int fd, int64_t offset, int64_t length) {
         mCondition.wait(mLock);
     }
 
+    AVNuUtils::get()->printFileName(fd);
     return mAsyncResult;
 }
 
@@ -405,6 +409,9 @@ status_t NuPlayerDriver::seekTo(int msec) {
         {
             mAtEOS = false;
             mSeekInProgress = true;
+            if (mState == STATE_PAUSED) {
+               mStartupSeekTimeUs = seekTimeUs;
+            }
             // seeks can take a while, so we essentially paused
             notifyListener_l(MEDIA_PAUSED);
             mPlayer->seekToAsync(seekTimeUs, true /* needNotify */);
@@ -607,6 +614,8 @@ status_t NuPlayerDriver::getMetadata(
             Metadata::kSeekAvailable,
             mPlayerFlags & NuPlayer::Source::FLAG_CAN_SEEK);
 
+    AVMediaServiceUtils::get()->appendMeta(&meta);
+
     return OK;
 }
 
@@ -741,12 +750,19 @@ void NuPlayerDriver::notifyListener_l(
                     }
                 }
                 if (mLooping || mAutoLoop) {
-                    mPlayer->seekToAsync(0);
-                    if (mAudioSink != NULL) {
-                        // The renderer has stopped the sink at the end in order to play out
-                        // the last little bit of audio. If we're looping, we need to restart it.
-                        mAudioSink->start();
+                    if (mState == STATE_RUNNING) {
+                        mPlayer->seekToAsync(0);
+                        if (mAudioSink != NULL) {
+                            // The renderer has stopped the sink at the end in order to play out
+                            // the last little bit of audio. If we're looping, we need to restart it.
+                            mAudioSink->start();
+                        }
+                    } else {
+                        mPlayer->pause();
+                        mState = STATE_PAUSED;
+                        mAtEOS = true;
                     }
+
                     // don't send completion event when looping
                     return;
                 }

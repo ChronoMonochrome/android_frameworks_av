@@ -39,6 +39,7 @@ class IGraphicBufferConsumer;
 class IGraphicBufferProducer;
 class SurfaceMediaSource;
 struct ALooper;
+struct AMessage;
 
 struct StagefrightRecorder : public MediaRecorderBase {
     StagefrightRecorder(const String16 &opPackageName);
@@ -70,7 +71,7 @@ struct StagefrightRecorder : public MediaRecorderBase {
     // Querying a SurfaceMediaSourcer
     virtual sp<IGraphicBufferProducer> querySurfaceMediaSource() const;
 
-private:
+protected:
     sp<ICamera> mCamera;
     sp<ICameraRecordingProxy> mCameraProxy;
     sp<IGraphicBufferProducer> mPreviewSurface;
@@ -79,6 +80,9 @@ private:
     String16 mClientName;
     uid_t mClientUid;
     sp<MediaWriter> mWriter;
+    sp<MediaSource> mVideoEncoderOMX;
+    sp<MediaSource> mAudioEncoderOMX;
+    sp<MediaSource> mVideoSourceNode;
     int mOutputFd;
     sp<AudioSource> mAudioSourceNode;
 
@@ -122,16 +126,17 @@ private:
     MediaProfiles *mEncoderProfiles;
 
     bool mStarted;
+    bool mRecPaused;
     // Needed when GLFrames are encoded.
     // An <IGraphicBufferProducer> pointer
     // will be sent to the client side using which the
     // frame buffers will be queued and dequeued
-    sp<SurfaceMediaSource> mSurfaceMediaSource;
+    sp<IGraphicBufferProducer> mGraphicBufferProducer;
     sp<ALooper> mLooper;
 
     static const int kMaxHighSpeedFps = 1000;
 
-    status_t prepareInternal();
+    virtual status_t prepareInternal();
     status_t setupMPEG4orWEBMRecording();
     void setupMPEG4orWEBMMetaData(sp<MetaData> *meta);
     status_t setupAMRRecording();
@@ -139,22 +144,22 @@ private:
     status_t setupRawAudioRecording();
     status_t setupRTPRecording();
     status_t setupMPEG2TSRecording();
-    sp<MediaSource> createAudioSource();
-    status_t checkVideoEncoderCapabilities();
+    virtual sp<MediaSource> createAudioSource();
+    virtual status_t checkVideoEncoderCapabilities();
     status_t checkAudioEncoderCapabilities();
     // Generic MediaSource set-up. Returns the appropriate
     // source (CameraSource or SurfaceMediaSource)
     // depending on the videosource type
     status_t setupMediaSource(sp<MediaSource> *mediaSource);
     status_t setupCameraSource(sp<CameraSource> *cameraSource);
-    // setup the surfacemediasource for the encoder
-    status_t setupSurfaceMediaSource();
-
     status_t setupAudioEncoder(const sp<MediaWriter>& writer);
-    status_t setupVideoEncoder(sp<MediaSource> cameraSource, sp<MediaSource> *source);
+    virtual status_t setupVideoEncoder(sp<MediaSource> cameraSource, sp<MediaSource> *source);
+    virtual void setupCustomVideoEncoderParams(sp<MediaSource> cameraSource,
+            sp<AMessage> &format);
+    virtual bool setCustomVideoEncoderMime(const video_encoder videoEncoder, sp<AMessage> format);
 
     // Encoding parameter handling utilities
-    status_t setParameter(const String8 &key, const String8 &value);
+    virtual status_t setParameter(const String8 &key, const String8 &value);
     status_t setParamAudioEncodingBitRate(int32_t bitRate);
     status_t setParamAudioNumberOfChannels(int32_t channles);
     status_t setParamAudioSamplingRate(int32_t sampleRate);
@@ -184,11 +189,19 @@ private:
     void clipAudioSampleRate();
     void clipNumberOfAudioChannels();
     void setDefaultProfileIfNecessary();
-    void setDefaultVideoEncoderIfNecessary();
+    virtual void setDefaultVideoEncoderIfNecessary();
+    virtual status_t handleCustomOutputFormats() {return UNKNOWN_ERROR;}
+    virtual status_t handleCustomRecording() {return UNKNOWN_ERROR;}
+    virtual status_t handleCustomAudioSource(sp<AMessage> /*format*/) {return UNKNOWN_ERROR;}
+    virtual status_t handleCustomAudioEncoder() {return UNKNOWN_ERROR;}
 
 
     StagefrightRecorder(const StagefrightRecorder &);
     StagefrightRecorder &operator=(const StagefrightRecorder &);
+
+    status_t setupWAVERecording();
+public:
+    virtual status_t setSourcePause(bool pause);
 };
 
 }  // namespace android

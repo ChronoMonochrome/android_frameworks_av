@@ -18,6 +18,7 @@
 #define LOG_TAG "MediaRecorderService"
 #include <utils/Log.h>
 
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -39,6 +40,7 @@
 
 #include "StagefrightRecorder.h"
 #include <gui/IGraphicBufferProducer.h>
+#include "mediaplayerservice/AVMediaServiceExtensions.h"
 
 namespace android {
 
@@ -46,6 +48,9 @@ const char* cameraPermission = "android.permission.CAMERA";
 const char* recordAudioPermission = "android.permission.RECORD_AUDIO";
 
 static bool checkPermission(const char* permissionString) {
+#ifndef HAVE_ANDROID_OS
+    return true;
+#endif
     if (getpid() == IPCThreadState::self()->getCallingPid()) return true;
     bool ok = checkCallingPermission(String16(permissionString));
     if (!ok) ALOGE("Request requires %s", permissionString);
@@ -103,7 +108,7 @@ status_t MediaRecorderClient::setVideoSource(int vs)
 {
     ALOGV("setVideoSource(%d)", vs);
     // Check camera permission for sources other than SURFACE
-    if (vs != VIDEO_SOURCE_GRALLOC_BUFFER && !checkPermission(cameraPermission)) {
+    if (vs != VIDEO_SOURCE_SURFACE && !checkPermission(cameraPermission)) {
         return PERMISSION_DENIED;
     }
     Mutex::Autolock lock(mLock);
@@ -163,7 +168,7 @@ status_t MediaRecorderClient::setAudioEncoder(int ae)
 
 status_t MediaRecorderClient::setOutputFile(int fd, int64_t offset, int64_t length)
 {
-    ALOGV("setOutputFile(%d, %lld, %lld)", fd, offset, length);
+    ALOGV("setOutputFile(%d, %" PRId64 ", %" PRId64 ")", fd, offset, length);
     Mutex::Autolock lock(mLock);
     if (mRecorder == NULL) {
         ALOGE("recorder is not initialized");
@@ -239,6 +244,17 @@ status_t MediaRecorderClient::start()
 
 }
 
+status_t MediaRecorderClient::pause()
+{
+    ALOGV("pause");
+    Mutex::Autolock lock(mLock);
+    if (mRecorder == NULL) {
+        ALOGE("recorder is not initialized");
+        return NO_INIT;
+    }
+    return mRecorder->pause();
+}
+
 status_t MediaRecorderClient::stop()
 {
     ALOGV("stop");
@@ -302,7 +318,7 @@ MediaRecorderClient::MediaRecorderClient(const sp<MediaPlayerService>& service, 
 {
     ALOGV("Client constructor");
     mPid = pid;
-    mRecorder = new StagefrightRecorder(opPackageName);
+    mRecorder = AVMediaServiceFactory::get()->createStagefrightRecorder(opPackageName);
     mMediaPlayerService = service;
 }
 

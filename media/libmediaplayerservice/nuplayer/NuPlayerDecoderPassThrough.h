@@ -18,6 +18,8 @@
 
 #define NUPLAYER_DECODER_PASS_THROUGH_H_
 
+#include <media/stagefright/foundation/AMessage.h>
+
 #include "NuPlayer.h"
 
 #include "NuPlayerDecoderBase.h"
@@ -43,35 +45,37 @@ protected:
     virtual void onFlush();
     virtual void onShutdown(bool notifyComplete);
     virtual bool doRequestBuffers();
+    virtual void setPcmFormat(const sp<AMessage> &format) { format->setInt32("pcm-format", mPCMFormat); }
+    virtual sp<ABuffer> aggregateBuffer(const sp<ABuffer> &accessUnit);
 
-private:
     enum {
         kWhatBufferConsumed     = 'bufC',
     };
 
     sp<Source> mSource;
     sp<Renderer> mRenderer;
+    size_t mAggregateBufferSizeBytes;
     int64_t mSkipRenderingUntilMediaTimeUs;
-
-    bool    mReachedEOS;
+    bool mReachedEOS;
 
     // Used by feedDecoderInputData to aggregate small buffers into
     // one large buffer.
+    status_t mPendingAudioErr;
     sp<ABuffer> mPendingAudioAccessUnit;
-    status_t    mPendingAudioErr;
     sp<ABuffer> mAggregateBuffer;
 
+private:
     // mPendingBuffersToDrain are only for debugging. It can be removed
     // when the power investigation is done.
     size_t  mPendingBuffersToDrain;
     size_t  mCachedBytes;
     AString mComponentName;
+    audio_format_t mPCMFormat;
 
     bool isStaleReply(const sp<AMessage> &msg);
     bool isDoneFetching() const;
 
     status_t dequeueAccessUnit(sp<ABuffer> *accessUnit);
-    sp<ABuffer> aggregateBuffer(const sp<ABuffer> &accessUnit);
     status_t fetchInputData(sp<AMessage> &reply);
     void doFlush(bool notifyComplete);
 

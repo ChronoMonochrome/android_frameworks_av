@@ -32,6 +32,7 @@
 
 #include "TestPlayerStub.h"
 #include "nuplayer/NuPlayerDriver.h"
+#include <mediaplayerservice/AVMediaServiceExtensions.h>
 
 namespace android {
 
@@ -80,7 +81,7 @@ void MediaPlayerFactory::unregisterFactory(player_type type) {
 #define GET_PLAYER_TYPE_IMPL(a...)                      \
     Mutex::Autolock lock_(&sLock);                      \
                                                         \
-    player_type ret = STAGEFRIGHT_PLAYER;               \
+    player_type ret = NU_PLAYER;                        \
     float bestScore = 0.0;                              \
                                                         \
     for (size_t i = 0; i < sFactoryMap.size(); ++i) {   \
@@ -241,6 +242,8 @@ class TestPlayerFactory : public MediaPlayerFactory::IFactory {
 };
 
 void MediaPlayerFactory::registerBuiltinFactories() {
+
+    MediaPlayerFactory::IFactory* pCustomFactory = NULL;
     Mutex::Autolock lock_(&sLock);
 
     if (sInitComplete)
@@ -248,6 +251,11 @@ void MediaPlayerFactory::registerBuiltinFactories() {
 
     registerFactory_l(new NuPlayerFactory(), NU_PLAYER);
     registerFactory_l(new TestPlayerFactory(), TEST_PLAYER);
+    AVMediaServiceUtils::get()->getDashPlayerFactory(pCustomFactory, DASH_PLAYER);
+    if(pCustomFactory != NULL) {
+        ALOGV("Registering DASH_PLAYER");
+        registerFactory_l(pCustomFactory, DASH_PLAYER);
+    }
 
     sInitComplete = true;
 }

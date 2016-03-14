@@ -34,10 +34,14 @@
 #include <media/stagefright/MediaDefs.h>
 #include <media/stagefright/MediaErrors.h>
 
+#include <stagefright/AVExtensions.h>
+#include <stagefright/FFMPEGSoftCodec.h>
 #include <gui/Surface.h>
 
 #include "avc_utils.h"
 #include "ATSParser.h"
+#include "mediaplayerservice/AVNuExtensions.h"
+
 
 namespace android {
 
@@ -69,6 +73,7 @@ NuPlayer::Decoder::Decoder(
       mIsSecure(false),
       mFormatChangePending(false),
       mTimeChangePending(false),
+      mVideoFormatChangeDoFlushOnly(false),
       mResumePending(false),
       mComponentName("decoder") {
     mCodecLooper = new ALooper;
@@ -77,7 +82,9 @@ NuPlayer::Decoder::Decoder(
 }
 
 NuPlayer::Decoder::~Decoder() {
-    mCodec->release();
+    if (mCodec != NULL) {
+        mCodec->release();
+    }
     releaseAndResetMediaBuffers();
 }
 
@@ -237,6 +244,7 @@ void NuPlayer::Decoder::onConfigure(const sp<AMessage> &format) {
 
     mFormatChangePending = false;
     mTimeChangePending = false;
+    mVideoFormatChangeDoFlushOnly = false;
 
     ++mBufferGeneration;
 
@@ -250,8 +258,17 @@ void NuPlayer::Decoder::onConfigure(const sp<AMessage> &format) {
     mComponentName.append(" decoder");
     ALOGV("[%s] onConfigure (surface=%p)", mComponentName.c_str(), mSurface.get());
 
-    mCodec = MediaCodec::CreateByType(
-            mCodecLooper, mime.c_str(), false /* encoder */, NULL /* err */, mPid);
+    mCodec = AVUtils::get()->createCustomComponentByName(mCodecLooper, mime.c_str(), false /* encoder */, format);
+    FFMPEGSoftCodec::overrideComponentName(0, format, &mComponentName, &mime, false);
+
+    if (mCodec == NULL) {
+        if (!mComponentName.startsWith(mime.c_str())) {
+            mCodec = MediaCodec::CreateByComponentName(mCodecLooper, mComponentName.c_str());
+        } else {
+            mCodec = MediaCodec::CreateByType(mCodecLooper, mime.c_str(), false /* encoder */);
+        }
+    }
+
     int32_t secure = 0;
     if (format->findInt32("secure", &secure) && secure != 0) {
         if (mCodec != NULL) {
@@ -356,7 +373,14 @@ void NuPlayer::Decoder::onResume(bool notifyComplete) {
     if (notifyComplete) {
         mResumePending = true;
     }
-    mCodec->start();
+
+    if (mCodec != NULL) {
+        mCodec->start();
+    } else {
+        ALOGW("Decoder %s onResume without a valid codec object",
+              mComponentName.c_str());
+        handleError(NO_INIT);
+    }
 }
 
 void NuPlayer::Decoder::doFlush(bool notifyComplete) {
@@ -557,6 +581,11 @@ bool NuPlayer::Decoder::handleAnOutputBuffer(
     sp<ABuffer> buffer;
     mCodec->getOutputBuffer(index, &buffer);
 
+    if (buffer == NULL) {
+        handleError(UNKNOWN_ERROR);
+        return false;
+    }
+
     if (index >= mOutputBuffers.size()) {
         for (size_t i = mOutputBuffers.size(); i <= index; ++i) {
             mOutputBuffers.add();
@@ -568,6 +597,10 @@ bool NuPlayer::Decoder::handleAnOutputBuffer(
     buffer->setRange(offset, size);
     buffer->meta()->clear();
     buffer->meta()->setInt64("timeUs", timeUs);
+    setPcmFormat(buffer->meta());
+#ifdef TARGET_8974
+    AVNuUtils::get()->addFlagsInMeta(buffer, flags, mIsAudio);
+#endif
 
     bool eos = flags & MediaCodec::BUFFER_FLAG_EOS;
     // we do not expect CODECCONFIG or SYNCFRAME for decoder
@@ -591,6 +624,12 @@ bool NuPlayer::Decoder::handleAnOutputBuffer(
         }
 
         mSkipRenderingUntilMediaTimeUs = -1;
+    } else if ((flags & MediaCodec::BUFFER_FLAG_DATACORRUPT) &&
+            AVNuUtils::get()->dropCorruptFrame()) {
+        ALOGV("[%s] dropping corrupt buffer at time %lld as requested.",
+                     mComponentName.c_str(), (long long)timeUs);
+        reply->post();
+        return true;
     }
 
     mNumFramesTotal += !mIsAudio;
@@ -635,7 +674,7 @@ void NuPlayer::Decoder::handleOutputFormatChange(const sp<AMessage> &format) {
         }
 
         status_t err = mRenderer->openAudioSink(
-                format, false /* offloadOnly */, hasVideo, flags, NULL /* isOffloaed */);
+                format, false /* offloadOnly */, hasVideo, flags, NULL /* isOffloaed */, mSource->isStreaming());
         if (err != OK) {
             handleError(err);
         }
@@ -710,6 +749,7 @@ status_t NuPlayer::Decoder::fetchInputData(sp<AMessage> &reply) {
                     // treat seamless format change separately
                     formatChange = !seamlessFormatChange;
                 }
+                AVNuUtils::get()->checkFormatChange(&formatChange, accessUnit);
 
                 // For format or time change, return EOS to queue EOS input,
                 // then wait for EOS on output.
@@ -721,9 +761,20 @@ status_t NuPlayer::Decoder::fetchInputData(sp<AMessage> &reply) {
                     mTimeChangePending = true;
                     err = ERROR_END_OF_STREAM;
                 } else if (seamlessFormatChange) {
-                    // reuse existing decoder and don't flush
-                    rememberCodecSpecificData(newFormat);
-                    continue;
+                    if (!mIsAudio &&
+                            newFormat != NULL &&
+                            newFormat->contains("prefer-adaptive-playback")) {
+                        ALOGV("in smooth streaming mode, "
+                             "do video flush in video seamless format change");
+                        mFormatChangePending = true;
+                        mVideoFormatChangeDoFlushOnly = true;
+                        err = ERROR_END_OF_STREAM;
+                    } else {
+                        // reuse existing decoder and don't flush
+                        rememberCodecSpecificData(newFormat);
+                        continue;
+                    }
+
                 } else {
                     // This stream is unaffected by the discontinuity
                     return -EWOULDBLOCK;
@@ -951,10 +1002,14 @@ void NuPlayer::Decoder::finishHandleDiscontinuity(bool flushOnTimeChange) {
     sp<AMessage> msg = mNotify->dup();
     msg->setInt32("what", kWhatInputDiscontinuity);
     msg->setInt32("formatChange", mFormatChangePending);
+    if (mVideoFormatChangeDoFlushOnly) {
+        msg->setInt32("video-seamlessChange", mVideoFormatChangeDoFlushOnly);
+    }
     msg->post();
 
     mFormatChangePending = false;
     mTimeChangePending = false;
+    mVideoFormatChangeDoFlushOnly = false;
 }
 
 bool NuPlayer::Decoder::supportsSeamlessAudioFormatChange(

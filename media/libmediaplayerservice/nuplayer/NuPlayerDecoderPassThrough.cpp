@@ -29,14 +29,12 @@
 #include <media/stagefright/foundation/ADebug.h>
 #include <media/stagefright/foundation/AMessage.h>
 #include <media/stagefright/MediaErrors.h>
+#include "mediaplayerservice/AVNuExtensions.h"
 
 #include "ATSParser.h"
 
 namespace android {
 
-// TODO optimize buffer size for power consumption
-// The offload read buffer size is 32 KB but 24 KB uses less power.
-static const size_t kAggregateBufferSizeBytes = 24 * 1024;
 static const size_t kMaxCachedBytes = 200000;
 
 NuPlayer::DecoderPassThrough::DecoderPassThrough(
@@ -46,12 +44,16 @@ NuPlayer::DecoderPassThrough::DecoderPassThrough(
     : DecoderBase(notify),
       mSource(source),
       mRenderer(renderer),
+      // TODO optimize buffer size for power consumption
+      // The offload read buffer size is 32 KB but 24 KB uses less power.
+      mAggregateBufferSizeBytes(24 * 1024),
       mSkipRenderingUntilMediaTimeUs(-1ll),
       mReachedEOS(true),
       mPendingAudioErr(OK),
       mPendingBuffersToDrain(0),
       mCachedBytes(0),
-      mComponentName("pass through decoder") {
+      mComponentName("pass through decoder"),
+      mPCMFormat(AUDIO_FORMAT_INVALID) {
     ALOGW_IF(renderer == NULL, "expect a non-NULL renderer");
 }
 
@@ -73,9 +75,18 @@ void NuPlayer::DecoderPassThrough::onConfigure(const sp<AMessage> &format) {
     // The audio sink is already opened before the PassThrough decoder is created.
     // Opening again might be relevant if decoder is instantiated after shutdown and
     // format is different.
+    sp<MetaData> audioMeta = mSource->getFormatMeta(true /* audio */);
+    if (AVNuUtils::get()->isRAWFormat(audioMeta)) {
+        mPCMFormat = AVNuUtils::get()->getKeyPCMFormat(audioMeta);
+        if (mPCMFormat != AUDIO_FORMAT_INVALID) {
+            AVNuUtils::get()->setPCMFormat(format, mPCMFormat);
+            AVNuUtils::get()->updateAudioBitWidth(mPCMFormat, format);
+        }
+    }
+
     status_t err = mRenderer->openAudioSink(
             format, true /* offloadOnly */, hasVideo,
-            AUDIO_OUTPUT_FLAG_NONE /* flags */, NULL /* isOffloaded */);
+            AUDIO_OUTPUT_FLAG_NONE /* flags */, NULL /* isOffloaded */, mSource->isStreaming());
     if (err != OK) {
         handleError(err);
     }
@@ -172,9 +183,9 @@ sp<ABuffer> NuPlayer::DecoderPassThrough::aggregateBuffer(
     size_t smallSize = accessUnit->size();
     if ((mAggregateBuffer == NULL)
             // Don't bother if only room for a few small buffers.
-            && (smallSize < (kAggregateBufferSizeBytes / 3))) {
+            && (smallSize < (mAggregateBufferSizeBytes / 3))) {
         // Create a larger buffer for combining smaller buffers from the extractor.
-        mAggregateBuffer = new ABuffer(kAggregateBufferSizeBytes);
+        mAggregateBuffer = new ABuffer(mAggregateBufferSizeBytes);
         mAggregateBuffer->setRange(0, 0); // start empty
     }
 
@@ -200,6 +211,7 @@ sp<ABuffer> NuPlayer::DecoderPassThrough::aggregateBuffer(
             if ((bigSize == 0) && smallTimestampValid) {
                 mAggregateBuffer->meta()->setInt64("timeUs", timeUs);
             }
+            setPcmFormat(mAggregateBuffer->meta());
             // Append small buffer to the bigger buffer.
             memcpy(mAggregateBuffer->base() + bigSize, accessUnit->data(), smallSize);
             bigSize += smallSize;
@@ -211,6 +223,7 @@ sp<ABuffer> NuPlayer::DecoderPassThrough::aggregateBuffer(
     } else {
         // decided not to aggregate
         aggregate = accessUnit;
+        setPcmFormat(aggregate->meta());
     }
 
     return aggregate;

@@ -40,11 +40,14 @@ LOCAL_SHARED_LIBRARIES :=       \
     libstagefright_wfd          \
     libutils                    \
     libvorbisidec               \
+	libaudioutils               \
 
 LOCAL_STATIC_LIBRARIES :=       \
     libstagefright_nuplayer     \
     libstagefright_rtsp         \
-    libstagefright_timedtext    \
+
+LOCAL_WHOLE_STATIC_LIBRARIES := \
+    libavmediaserviceextensions \
 
 LOCAL_C_INCLUDES :=                                                 \
     $(TOP)/frameworks/av/media/libstagefright/include               \
@@ -53,13 +56,18 @@ LOCAL_C_INCLUDES :=                                                 \
     $(TOP)/frameworks/av/media/libstagefright/webm                  \
     $(TOP)/frameworks/native/include/media/openmax                  \
     $(TOP)/external/tremolo/Tremolo                                 \
+    $(TOP)/frameworks/av/media/libavextensions                      \
 
-LOCAL_CFLAGS += -Wno-error=deprecated-declarations -Wall
+LOCAL_CFLAGS += -Werror -Wno-error=deprecated-declarations -Wall #-DLOG_NDEBUG=0
 LOCAL_CLANG := true
 
 LOCAL_MODULE:= libmediaplayerservice
 
-LOCAL_32_BIT_ONLY := true
+#LOCAL_32_BIT_ONLY := true
+
+ifeq ($(TARGET_BOARD_PLATFORM),msm8974)
+    LOCAL_CFLAGS += -DTARGET_8974
+endif
 
 include $(BUILD_SHARED_LIBRARY)
 
