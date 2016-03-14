@@ -70,6 +70,8 @@ static const char kMetaKey_Build[]      = "com.android.build";
 #endif
 static const char kMetaKey_CaptureFps[] = "com.android.capture.fps";
 
+Mutex mLock;
+
 /* uncomment to include model and build in meta */
 //#define SHOW_MODEL_BUILD 1
 
@@ -1795,9 +1797,11 @@ status_t MPEG4Writer::startWriterThread() {
 
 
 status_t MPEG4Writer::Track::start(MetaData *params) {
+    mLock.lock();
     if (!mDone && mPaused) {
         mPaused = false;
         mResumed = true;
+        mLock.unlock();
         return OK;
     }
 
@@ -1838,6 +1842,7 @@ status_t MPEG4Writer::Track::start(MetaData *params) {
     status_t err = mSource->start(meta.get());
     if (err != OK) {
         mDone = mReachedEOS = true;
+        mLock.unlock();
         return err;
     }
 
@@ -1856,6 +1861,7 @@ status_t MPEG4Writer::Track::start(MetaData *params) {
     pthread_create(&mThread, &attr, ThreadWrapper, this);
     pthread_attr_destroy(&attr);
 
+    mLock.unlock();
     return OK;
 }
 
@@ -1865,6 +1871,7 @@ status_t MPEG4Writer::Track::pause() {
 }
 
 status_t MPEG4Writer::Track::stop() {
+    mLock.lock();
     ALOGD("Stopping %s track", mIsAudio? "Audio": "Video");
     if (!mStarted) {
         ALOGE("Stop() called but track is not started");
@@ -1872,6 +1879,7 @@ status_t MPEG4Writer::Track::stop() {
     }
 
     if (mDone) {
+        mLock.unlock();
         return OK;
     }
     mDone = true;
@@ -1889,6 +1897,7 @@ status_t MPEG4Writer::Track::stop() {
     }
 
     ALOGD("%s track stopped", mIsAudio? "Audio": "Video");
+    mLock.unlock();
     return err;
 }
 
