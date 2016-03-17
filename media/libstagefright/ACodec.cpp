@@ -1016,6 +1016,9 @@ status_t ACodec::configureOutputBuffersFromNativeWindow(
             return err;
         }
     }
+#ifdef BOARD_CANT_REALLOCATE_OMX_BUFFERS
+    }
+#endif
 
     err = native_window_set_buffer_count(
             mNativeWindow.get(), def.nBufferCountActual);
