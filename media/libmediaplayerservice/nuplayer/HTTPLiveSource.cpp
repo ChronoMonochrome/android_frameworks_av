@@ -30,7 +30,6 @@
 #include <media/stagefright/MediaErrors.h>
 #include <media/stagefright/MetaData.h>
 #include <media/stagefright/MediaDefs.h>
-#include <media/stagefright/Utils.h>
 
 namespace android {
 
@@ -101,38 +100,26 @@ void NuPlayer::HTTPLiveSource::prepareAsync() {
 void NuPlayer::HTTPLiveSource::start() {
 }
 
-sp<MetaData> NuPlayer::HTTPLiveSource::getFormatMeta(bool audio) {
-    sp<MetaData> meta;
-    if (mLiveSession != NULL) {
-        mLiveSession->getStreamFormatMeta(
-                audio ? LiveSession::STREAMTYPE_AUDIO
-                      : LiveSession::STREAMTYPE_VIDEO,
-                &meta);
-    }
-
-    return meta;
-}
-
 sp<AMessage> NuPlayer::HTTPLiveSource::getFormat(bool audio) {
-    sp<MetaData> meta;
+    sp<AMessage> format;
     status_t err = -EWOULDBLOCK;
     if (mLiveSession != NULL) {
-        err = mLiveSession->getStreamFormatMeta(
+        err = mLiveSession->getStreamFormat(
                 audio ? LiveSession::STREAMTYPE_AUDIO
                       : LiveSession::STREAMTYPE_VIDEO,
-                &meta);
+                &format);
     }
 
-    sp<AMessage> format;
     if (err == -EWOULDBLOCK) {
         format = new AMessage();
         format->setInt32("err", err);
         return format;
     }
 
-    if (err != OK || convertMetaDataToMessage(meta, &format) != OK) {
+    if (err != OK) {
         return NULL;
     }
+
     return format;
 }
 
