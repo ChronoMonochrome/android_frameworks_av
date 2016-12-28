@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:=                 \
         TextDescriptions.cpp      \
 
-LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
+LOCAL_CFLAGS += -Wno-multichar  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := signed-integer-overflow
 

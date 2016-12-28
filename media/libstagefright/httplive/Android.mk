@@ -15,7 +15,7 @@ LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/media/libstagefright/mpeg2ts \
 	$(TOP)/frameworks/native/include/media/openmax
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := unsigned-integer-overflow signed-integer-overflow
 

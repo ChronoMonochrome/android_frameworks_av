@@ -77,6 +77,7 @@ endif
 LOCAL_CFLAGS += -Os
 
 LOCAL_MODULE:= libaudioflinger
+LOCAL_CLANG := true
 
 LOCAL_SRC_FILES += \
     AudioWatchdog.cpp        \
@@ -94,7 +95,7 @@ LOCAL_CFLAGS += -DSTATE_QUEUE_INSTANTIATIONS='"StateQueueInstantiations.cpp"'
 
 LOCAL_CFLAGS += -fvisibility=hidden
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -124,7 +125,7 @@ LOCAL_MODULE:= test-resample
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_CFLAGS := -Werror -Wall
+LOCAL_CFLAGS :=  -Wall
 
 include $(BUILD_EXECUTABLE)
 
@@ -165,7 +166,7 @@ endif
 
 LOCAL_MODULE := libaudioresampler
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 
 # uncomment to disable NEON on architectures that actually do support NEON, for benchmarking
 #LOCAL_CFLAGS += -DUSE_NEON=false

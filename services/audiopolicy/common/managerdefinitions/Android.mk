@@ -89,5 +89,6 @@ LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 LOCAL_CFLAGS += -Wall -Werror
 
 LOCAL_MODULE := libaudiopolicycomponents
+LOCAL_CLANG := true
 
 include $(BUILD_STATIC_LIBRARY)

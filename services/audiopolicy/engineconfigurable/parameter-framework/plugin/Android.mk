@@ -15,7 +15,7 @@ LOCAL_SRC_FILES := \
 
 LOCAL_CFLAGS += \
     -Wall \
-    -Werror \
+     \
     -Wextra \
     -fvisibility-inlines-hidden \
     -fvisibility=hidden

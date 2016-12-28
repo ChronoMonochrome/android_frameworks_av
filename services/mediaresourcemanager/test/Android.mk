@@ -20,7 +20,7 @@ LOCAL_C_INCLUDES := \
   frameworks/av/include \
   frameworks/av/services/mediaresourcemanager \
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 
 LOCAL_32_BIT_ONLY := true
@@ -46,7 +46,7 @@ LOCAL_C_INCLUDES := \
   frameworks/av/include \
   frameworks/av/services/mediaresourcemanager \
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 
 LOCAL_32_BIT_ONLY := true

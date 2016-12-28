@@ -72,7 +72,7 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := \
 	system/media/camera/include \
 	frameworks/av/include/camera
 
-LOCAL_CFLAGS += -Werror -Wall -Wextra
+LOCAL_CFLAGS +=  -Wall -Wextra
 
 ifneq ($(TARGET_SPECIFIC_CAMERA_PARAMETER_LIBRARY),)
 LOCAL_WHOLE_STATIC_LIBRARIES += $(TARGET_SPECIFIC_CAMERA_PARAMETER_LIBRARY)

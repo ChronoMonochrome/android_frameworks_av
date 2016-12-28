@@ -33,7 +33,7 @@ ifeq ($(TARGET_ARCH),arm)
     LOCAL_CFLAGS += -Wno-psabi
 endif
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := unsigned-integer-overflow signed-integer-overflow
 
@@ -58,7 +58,7 @@ LOCAL_C_INCLUDES:= \
 	frameworks/av/media/libstagefright \
 	$(TOP)/frameworks/native/include/media/openmax
 
-LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
+LOCAL_CFLAGS += -Wno-multichar  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := signed-integer-overflow
 

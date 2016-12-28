@@ -3,7 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_CPPFLAGS += -D__STDINT_LIMITS
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := unsigned-integer-overflow signed-integer-overflow
 

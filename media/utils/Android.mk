@@ -32,7 +32,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
 LOCAL_CFLAGS += \
   -Wall \
   -Wextra \
-  -Werror \
+   \
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include
 

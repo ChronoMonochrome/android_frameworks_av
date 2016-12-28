@@ -36,6 +36,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_MODULE:= libradio
 
-LOCAL_CFLAGS := -Werror -Wall
+LOCAL_CFLAGS :=  -Wall
 
 include $(BUILD_SHARED_LIBRARY)

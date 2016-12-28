@@ -51,6 +51,7 @@ LOCAL_STATIC_LIBRARIES := \
 
 LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 
+LOCAL_CLANG := true
 LOCAL_MODULE:= libaudiopolicyservice
 
 LOCAL_CFLAGS += -fvisibility=hidden
@@ -112,7 +113,7 @@ LOCAL_CFLAGS += -Wall
 LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 
 LOCAL_MODULE:= libaudiopolicymanagerdefault
-
+LOCAL_CLANG := true
 include $(BUILD_SHARED_LIBRARY)
 
 ifneq ($(USE_CUSTOM_AUDIO_POLICY), 1)
@@ -137,7 +138,7 @@ LOCAL_CFLAGS := -Wall
 LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 
 LOCAL_MODULE:= libaudiopolicymanager
-
+LOCAL_CLANG := true
 include $(BUILD_SHARED_LIBRARY)
 
 endif

@@ -35,7 +35,7 @@ LOCAL_SHARED_LIBRARIES:= \
         libui                           \
         libutils                        \
 
-LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
+LOCAL_CFLAGS += -Wno-multichar  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := signed-integer-overflow
 

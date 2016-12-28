@@ -13,7 +13,7 @@ LOCAL_32_BIT_ONLY := true
 LOCAL_C_INCLUDES += \
     $(TOPDIR)frameworks/av/include
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 
 include $(BUILD_SHARED_LIBRARY)

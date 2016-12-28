@@ -15,7 +15,7 @@ audio_policy_engine_includes_common := \
 
 LOCAL_CFLAGS += \
     -Wall \
-    -Werror \
+     \
     -Wextra \
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := \

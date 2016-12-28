@@ -33,7 +33,7 @@ LOCAL_SHARED_LIBRARIES := \
         liblog            \
         libpowermanager
 
-LOCAL_CFLAGS += -Wno-multichar -Werror -Wall
+LOCAL_CFLAGS += -Wno-multichar  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := unsigned-integer-overflow signed-integer-overflow
 

@@ -21,7 +21,7 @@ LOCAL_MODULE:= libstagefright_http_support
 
 LOCAL_CFLAGS += -Wno-multichar
 
-LOCAL_CFLAGS += -Werror -Wall
+LOCAL_CFLAGS +=  -Wall
 LOCAL_CLANG := true
 LOCAL_SANITIZE := signed-integer-overflow
 

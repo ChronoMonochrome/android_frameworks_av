@@ -31,7 +31,7 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES := $(call include-path-for, audio-utils)
 
-LOCAL_CFLAGS := -Werror -Wall
+LOCAL_CFLAGS :=  -Wall
 
 ifeq ($(BOARD_HAVE_PRE_KITKAT_AUDIO_BLOB),true)
     LOCAL_CFLAGS += -DHAVE_PRE_KITKAT_AUDIO_BLOB

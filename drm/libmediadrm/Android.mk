@@ -26,7 +26,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_C_INCLUDES := \
     libcore/include
 
-LOCAL_CFLAGS += -Werror -Wno-error=deprecated-declarations -Wall
+LOCAL_CFLAGS +=  -Wno-error=deprecated-declarations -Wall
 LOCAL_CLANG := true
 
 LOCAL_MODULE:= libmediadrm
